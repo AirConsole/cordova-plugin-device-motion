@@ -25,10 +25,18 @@ description: Access accelerometer data.
 
 ----
 
+## Changes for AirConsole
+
+- Retrieve device motion data too (alpha, gamma, beta)
+
 ## Installation
-    cordova plugin add https://github.com/distinctdan/cordova-plugin-device-motion.git
+    cordova plugin add https://github.com/AirConsole/cordova-plugin-device-motion.git
 Tested platforms: Android 7+, iOS 11+
-    
+
+## Original plugin
+
+https://github.com/distinctdan/cordova-plugin-device-motion
+
 ## Discussion
 This plugin uses the accelerometer to provide motion events from native code. Ideally, this plugin wouldn't be necessary because of the DeviceMotion api's, but iOS 13 has at least 1 deal-breaker bug at the time of writing (2019-11-16). iOS 13 currently requires you to prompt the user to grant motion rights every time your app runs, which is a deal-breaker for me; so I revived this plugin to support my tilt-controlled game.
 
@@ -52,14 +60,14 @@ Changes from the existing device-motion plugin:
 - JS callbacks are called immediately when we get a motion event, instead of waiting until a setInterval runs. This reduces perceived input lag.
 - Automatically unregisters/reregisters native motion handlers when the app pauses/resumes
 - Dropped support for all platforms except for Android/iOS
-    
+
 ## Example Usage
 
 Registering for motion events:
 ```js
 // Register for motion events at 30fps
-const unregister = navigator.accelerometer.watchAcceleration((accel) => {
-    console.log('Got motion:', accel.x, accel.y, accel.x);
+const unregister = navigator.accelerometer.watchAcceleration((data) => {
+    console.log('Got motion:', data);
 }, (error) => {
     console.log('ERROR: ', error);
 }, {frequency: 1000/30});
@@ -76,7 +84,7 @@ unregister(() => {
 ```
 
 ### onPause/onResume
-This plugin automatically unregister/reregisters the native motion stuff when the app pauses or resumes in order to save battery life. There's no need for your app to do anything. 
+This plugin automatically unregister/reregisters the native motion stuff when the app pauses or resumes in order to save battery life. There's no need for your app to do anything.
 
 ## API
 
@@ -88,7 +96,10 @@ This plugin automatically unregister/reregisters the native motion stuff when th
     x: number,
     y: number,
     z: number,
-    timestamp: number,
+    // Device motion / rotation
+    alpha: number,
+    beta: number,
+    gamma: number
 }
 ```
 - `error?(err: any)` -- Optional error callback that is passed an error from the native side.

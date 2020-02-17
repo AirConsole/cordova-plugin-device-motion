@@ -31,5 +31,6 @@
 - (void)stop:(CDVInvokedUrlCommand*)command;
 - (void)onPause;
 - (void)onResume;
+- (void)sendResult;
 
 @end

@@ -31,12 +31,16 @@ bool hasAddedAccelCallback = false;
 bool isStarted = false;
 double updateIntervalMs = 1000; // This value is overwritten by the js default
 
+NSMutableDictionary* accelProps = NULL;
+
 
 // g constant: -9.81 m/s^2
 #define kGravitationalConstant -9.81
 
 - (void)pluginInitialize
 {
+    accelProps = [NSMutableDictionary dictionaryWithCapacity:6];
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onPause) name:UIApplicationDidEnterBackgroundNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onResume) name:UIApplicationWillEnterForegroundNotification object:nil];
 }
@@ -78,6 +82,13 @@ double updateIntervalMs = 1000; // This value is overwritten by the js default
    }
 }
 
+- (void)sendResult
+{
+    CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:accelProps];
+    [result setKeepCallbackAsBool:YES];
+    [self.commandDelegate sendPluginResult:result callbackId:callbackId];
+}
+
 - (void)_startAccelUpdates
 {
     hasAddedAccelCallback = true;
@@ -86,16 +97,44 @@ double updateIntervalMs = 1000; // This value is overwritten by the js default
     [self.motionManager startAccelerometerUpdatesToQueue:[NSOperationQueue mainQueue] withHandler:^(CMAccelerometerData *accelerometerData, NSError *error) {
 
         // Create an acceleration object
-        NSMutableDictionary* accelProps = [NSMutableDictionary dictionaryWithCapacity:4];
+        //NSMutableDictionary* accelProps = [NSMutableDictionary dictionaryWithCapacity:4];
         accelProps[@"x"] = [NSNumber numberWithDouble:accelerometerData.acceleration.x * kGravitationalConstant];
         accelProps[@"y"] = [NSNumber numberWithDouble:accelerometerData.acceleration.y * kGravitationalConstant];
         accelProps[@"z"] = [NSNumber numberWithDouble:accelerometerData.acceleration.z * kGravitationalConstant];
-        accelProps[@"timestamp"] = [NSNumber numberWithDouble:([[NSDate date] timeIntervalSince1970] * 1000)];
-
-        CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:accelProps];
-        [result setKeepCallbackAsBool:YES];
-        [self.commandDelegate sendPluginResult:result callbackId:callbackId];
+        //accelProps[@"timestamp"] = [NSNumber numberWithDouble:([[NSDate date] timeIntervalSince1970] * 1000)];
     }];
+
+    if (self.motionManager.deviceMotionAvailable) {
+
+        self.motionManager.deviceMotionUpdateInterval = 0.1;
+
+        NSOperationQueue *queue = [[NSOperationQueue alloc] init];
+        [self.motionManager startDeviceMotionUpdatesToQueue:queue
+                                                withHandler:^(CMDeviceMotion *motion, NSError *error) {
+
+                // Get the attitude of the device
+                CMAttitude *attitude = motion.attitude;
+
+                //NSMutableDictionary* accelProps = [NSMutableDictionary dictionaryWithCapacity:4];
+
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    // Update some UI
+                    accelProps[@"alpha"] = [NSNumber numberWithDouble:attitude.yaw * 180.0/M_PI];
+                    accelProps[@"beta"] = [NSNumber numberWithDouble:attitude.pitch * 180.0/M_PI];
+                    accelProps[@"gamma"] = [NSNumber numberWithDouble:attitude.roll * 180.0/M_PI];
+
+                    [self sendResult];
+
+                });
+
+            }];
+
+        NSLog(@"Device motion started");
+    }
+    else {
+        NSLog(@"Device motion unavailable");
+    }
+
 }
 
 - (void)stop:(CDVInvokedUrlCommand*)command
